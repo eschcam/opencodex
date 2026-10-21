@@ -73,3 +73,22 @@ export function resolveConnectTimeoutMs(configuredMs: number | undefined, option
   }
   return localUpstream ? 0 : DEFAULT_CONNECT_TIMEOUT_MS;
 }
+
+/** Floor applied to a positive non-streaming body-read budget so a public upstream keeps at least
+ * a few seconds to deliver a buffered JSON body even when the stall budget resolves lower. */
+export const MIN_JSON_BODY_READ_MS = 5_000;
+
+/**
+ * Resolve the total/inactivity budget for reading a buffered non-streaming JSON response body.
+ *
+ * The body stream is governed by the same clock as the streaming stall budget, not by the
+ * header-arrival (connect) deadline: once headers arrive the connect phase is over, and a slow
+ * local model that streams its JSON body over many seconds must not be cut by a deadline derived
+ * from a disabled connect timeout. This therefore follows {@link resolveStallTimeoutMs} — a local
+ * upstream with no explicit budget resolves to `0` (disabled; the reader arms no body clock), while
+ * a public upstream keeps a positive budget floored at {@link MIN_JSON_BODY_READ_MS}.
+ */
+export function resolveJsonBodyReadTimeoutMs(configuredSec: number | undefined, options: StallTimeoutOptions = {}): number {
+  const stallMs = resolveStallTimeoutMs(configuredSec, options);
+  return stallMs <= 0 ? 0 : Math.max(stallMs, MIN_JSON_BODY_READ_MS);
+}

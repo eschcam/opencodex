@@ -67,7 +67,7 @@ import type { RouteResult } from "../router";
 import type { OcxConfig, OcxProviderConfig } from "../types";
 import { fetchWithHeaderTimeout, physicalSendObserverInit, providerFetch, safeHostLabel, sendWithConnectionPolicy } from "./responses/fetch-helpers";
 import { isLocalUpstream } from "../lib/local-upstream";
-import { resolveConnectTimeoutMs } from "../stall-timeout";
+import { resolveConnectTimeoutMs, resolveJsonBodyReadTimeoutMs } from "../stall-timeout";
 import { linkAbortSignal } from "./responses";
 import {
   noteProviderAttemptSend,
@@ -320,7 +320,11 @@ export async function runNativeChatAttempt(
   // Header-arrival deadline. A local upstream (loopback / private / `.local` / `.lan`) with no
   // explicit budget disables it so a large prompt's silent prefill is not cut before the first
   // header. Credential rotation re-resolves keys, not the origin, so the routed baseUrl is stable.
-  const connectMs = resolveConnectTimeoutMs(config.connectTimeoutMs, { localUpstream: isLocalUpstream(route.provider.baseUrl) });
+  const localUpstream = isLocalUpstream(route.provider.baseUrl);
+  const connectMs = resolveConnectTimeoutMs(config.connectTimeoutMs, { localUpstream });
+  // Non-streaming JSON body-read budget. Independent of the header deadline above: it follows the
+  // stall clock, so a local upstream streaming a buffered JSON body over many seconds is not cut.
+  const jsonBodyReadMs = resolveJsonBodyReadTimeoutMs(config.stallTimeoutSec, { localUpstream });
   // Native chat is its own entry path -- chat-completions.ts routes here directly and never
   // through the Responses core -- so the pre-dispatch key preference is applied again here
   // rather than inherited. Assigned before the adapter binds below, for the same reason it is
@@ -884,8 +888,8 @@ export async function runNativeChatAttempt(
     body = await readBoundedResponseBody(response, {
       signal: upstream.signal,
       maxBytes: MAX_NATIVE_CHAT_JSON_BYTES,
-      totalTimeoutMs: Math.max(connectMs, 5_000),
-      inactivityTimeoutMs: Math.max(connectMs, 5_000),
+      totalTimeoutMs: jsonBodyReadMs,
+      inactivityTimeoutMs: jsonBodyReadMs,
     });
   } catch (error) {
     cleanupAbort();

@@ -12,7 +12,7 @@ import { transientSendCapFor } from "./request-send-budget";
 import { isNonReplayableResponse, isSameTargetRetryHold } from "../../lib/upstream-retry";
 import { sanitizeNonReplayableUpstreamError } from "./non-replayable-error";
 import { isLocalUpstream } from "../../lib/local-upstream";
-import { resolveConnectTimeoutMs } from "../../stall-timeout";
+import { resolveConnectTimeoutMs, resolveStallTimeoutMs } from "../../stall-timeout";
 import type { ResponsesRequestContext, ResponsesAdmissionState } from "./core-options";
 import type { PreparedResponsesRequest } from "./request-prepare";
 import type { ResponsesTransport } from "./request-transport";
@@ -267,9 +267,10 @@ export async function prepareAdapterExchange(
   const connectMs = resolveConnectTimeoutMs(config.connectTimeoutMs, { localUpstream });
   // Bridge stall budget (seconds of silence before upstream_stall_timeout); the retry backoff
   // heartbeat interval is derived from it so the watchdog is always fed during deliberate waits.
-  const stallTimeoutMs = typeof config.stallTimeoutSec === "number" && Number.isFinite(config.stallTimeoutSec) && config.stallTimeoutSec > 0
-    ? Math.floor(config.stallTimeoutSec * 1000)
-    : 300_000;
+  // Local-aware like the SSE translator: a local upstream with no explicit budget resolves to 0
+  // (disabled) so the body-inactivity guard does not abort a slow prefill (the "client
+  // disconnected" cut a large local prompt hit at the flat 300s default).
+  const stallTimeoutMs = resolveStallTimeoutMs(config.stallTimeoutSec, { localUpstream });
   transportState.activeAdapter = transportState.adapter;
   const antigravityPoolActivated = route.providerName === "google-antigravity"
     && isGenericOAuthFailoverEnabled(config, route.providerName);

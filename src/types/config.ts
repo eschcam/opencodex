@@ -1022,7 +1022,14 @@ export interface OcxConfig {
    * response.incomplete. Default 300. Min 1.
    */
   stallTimeoutSec?: number;
-  /** Connect timeout (ms) for upstream fetch — covers DNS, TCP, TLS, and response header. Default 200000. */
+  /**
+   * Connect timeout (ms) for upstream fetch — the deadline from dispatch until the upstream
+   * returns its first response header (covers DNS, TCP, TLS, and the header wait; NOT the body
+   * stream that follows, which is governed by stallTimeoutSec). Set 0 (or any non-positive value)
+   * to disable it entirely. When unset, a public upstream defaults to 200000, while a local
+   * upstream (loopback / private / `.local` / `.lan`) disables it — a local model's prompt prefill
+   * can hold the connection silent for minutes on a large prompt before the first header arrives.
+   */
   connectTimeoutMs?: number;
   /** Graceful shutdown drain timeout (ms). Active turns are aborted after this deadline. Default 5000. */
   shutdownTimeoutMs?: number;

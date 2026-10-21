@@ -67,6 +67,7 @@ import type { RouteResult } from "../router";
 import type { OcxConfig, OcxProviderConfig } from "../types";
 import { fetchWithHeaderTimeout, physicalSendObserverInit, providerFetch, safeHostLabel, sendWithConnectionPolicy } from "./responses/fetch-helpers";
 import { isLocalUpstream } from "../lib/local-upstream";
+import { resolveConnectTimeoutMs } from "../stall-timeout";
 import { linkAbortSignal } from "./responses";
 import {
   noteProviderAttemptSend,
@@ -316,7 +317,10 @@ export async function runNativeChatAttempt(
     streamTurnRegistered = false;
     unregisterTurn(upstream);
   };
-  const connectMs = config.connectTimeoutMs ?? 200_000;
+  // Header-arrival deadline. A local upstream (loopback / private / `.local` / `.lan`) with no
+  // explicit budget disables it so a large prompt's silent prefill is not cut before the first
+  // header. Credential rotation re-resolves keys, not the origin, so the routed baseUrl is stable.
+  const connectMs = resolveConnectTimeoutMs(config.connectTimeoutMs, { localUpstream: isLocalUpstream(route.provider.baseUrl) });
   // Native chat is its own entry path -- chat-completions.ts routes here directly and never
   // through the Responses core -- so the pre-dispatch key preference is applied again here
   // rather than inherited. Assigned before the adapter binds below, for the same reason it is

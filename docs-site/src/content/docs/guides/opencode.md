@@ -203,8 +203,9 @@ will not survive. Keep custom entries under a provider key of your own instead.
 
 ## Slow local models (prefill timeouts)
 
-opencode waits up to five minutes for the first response header from a provider, and up to five
-minutes between streamed chunks. Behind the `opencodex` provider, a local model (LM Studio, vLLM,
+opencode waits a bounded time for the first response header from a provider (five minutes by
+default in current V2), and a separate, longer bound between streamed chunks. Behind the
+`opencodex` provider, a local model (LM Studio, vLLM,
 Ollama, or any self-hosted endpoint) can spend longer than that in prompt *prefill* on a large
 prompt — processing the prompt before it emits a single token. On a non-streaming turn the proxy
 sends opencode nothing until the upstream completes, so opencode's own header wait fires first and
@@ -214,7 +215,7 @@ working.
 Because the generated `opencodex` provider multiplexes every routed upstream under one block and
 opencode's timeouts are provider-wide, raise or disable the wait for the whole provider with
 `opencodeClientExport` in your opencodex config. It is omitted by default, so opencode keeps its
-native five-minute waits unless you opt in:
+native waits (header and the longer chunk bound) unless you opt in:
 
 ```json
 {

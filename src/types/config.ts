@@ -387,12 +387,13 @@ export interface OcxClientIntegrationsConfig {
  * (both the V1 `options` and V2 `settings` connection objects). Each maps to the matching
  * opencode `settings` field and accepts a number of milliseconds or `false` to disable that wait.
  *
- * Omitted by default: opencode keeps its native 5-minute header and chunk waits for every
- * upstream reached through the proxy. The knob exists because the generated `opencodex` provider
- * multiplexes all upstreams under one block and opencode's timeouts are provider-wide, so a user
- * fronting a slow local model (whose prompt prefill behind a non-streaming turn can exceed 5
- * minutes before the proxy emits a byte) can raise or disable the wait without touching the
- * safety net for anyone else only by setting it here.
+ * Omitted by default: opencode keeps its native header and chunk waits for every upstream reached
+ * through the proxy (current V2 defaults the header wait to 5 minutes and the longer chunk wait to
+ * 15 minutes; this repo pins no opencode release). The knob exists because the generated
+ * `opencodex` provider multiplexes all upstreams under one block and opencode's timeouts are
+ * provider-wide, so a user fronting a slow local model (whose prompt prefill behind a non-streaming
+ * turn can exceed the header wait before the proxy emits a byte) can raise or disable the wait
+ * without touching the safety net for anyone else only by setting it here.
  */
 export interface OcxOpencodeClientExportConfig {
   /** opencode `settings.headerTimeout`: client wait for the proxy's first response header (ms), or false to disable. */
@@ -686,9 +687,9 @@ export interface OcxConfig {
   clientIntegrations?: OcxClientIntegrationsConfig;
   /**
    * Opt-in opencode-side request timeouts emitted into the generated opencode provider block.
-   * Omitted by default (opencode keeps its native 5-minute header/chunk waits). Set
-   * `headerTimeoutMs` to extend or disable the wait that otherwise cuts a slow local model's
-   * prompt prefill. See {@link OcxOpencodeClientExportConfig}.
+   * Omitted by default (opencode keeps its native header/chunk waits). Set `headerTimeoutMs` to
+   * extend or disable the header wait that otherwise cuts a slow local model's prompt prefill.
+   * See {@link OcxOpencodeClientExportConfig}.
    */
   opencodeClientExport?: OcxOpencodeClientExportConfig;
   /** Aside account-backed profile synchronization; individual overrides survive bulk refresh. */

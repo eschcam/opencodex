@@ -722,8 +722,10 @@ export function raycastConfigPath(env: OpencodeLaunchEnv = process.env, home: st
 function opencodeProviderConnection(baseURL: string, config: OcxConfig): OpencodeProviderConnection {
   const options: OpencodeProviderConnection = { baseURL };
   // Opt-in opencode-side timeout overrides. Omitted by default so opencode keeps its native
-  // 5-minute header/chunk waits for every upstream routed through the proxy; a user fronting a
-  // slow local model sets these to extend or disable the wait that otherwise cuts a long prefill.
+  // header/chunk waits for every upstream routed through the proxy (current V2 defaults the
+  // header wait to 5 min and the longer chunk wait to 15 min, but this repo pins no opencode
+  // release); a user fronting a slow local model sets these to extend or disable the wait that
+  // otherwise cuts a long prefill.
   const timeouts = config.opencodeClientExport;
   if (timeouts) {
     if (timeouts.headerTimeoutMs !== undefined) options.headerTimeout = timeouts.headerTimeoutMs;
